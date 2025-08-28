@@ -1,4 +1,15 @@
-let globals = {};
+let globals = {
+	name: "a CCPlaymaker powered by Three.js Game",
+	icon: "https://example.com/image.webp",
+	sceneProps: {
+		dayCicle: false,
+		dayCicleTimeS: 0,
+		background: '',
+		backgroundColor: 0x80a0e0,
+		onControls: true,
+		playerGroupName: ""
+	}
+};
 let styleCssCCPlaymaker = `
 .Interface2D{
     width: 100%;
@@ -58,8 +69,56 @@ let elementCssPlaym = document.createElement('style');
 elementCssPlaym.innerHTML = styleCssCCPlaymaker;
 document.head.appendChild(elementCssPlaym);
 class CCPlaymaker{
-	static getSceneSceneAPI(){
-		return class SceneAPI{};
+	static getSceneAPI(){
+		class SceneAPI{
+			constructor(scene){
+				this.scene = scene;
+				if(globals.dayCicle){
+					this.dayCicleConter = 0;
+					this.dayCicle = setInterval(this.$dayCicleLoop.bind(this), 1);
+				}
+			}
+			$dayCicleLoop(){
+				this.dayCicleConter++;
+				if(this.dayCicleConter > globals.dayCicleTimeS){
+					this.dayCicleConter = 0;
+				}
+				let base = globals.dayCicleTimeS / 4;
+				if(this.dayCicleConter <= base){
+				    this.scene.background = SceneAPI.dayCicles[0];
+				}else if(this.dayCicleConter <= base * 2){
+					this.scene.background = SceneAPI.dayCicles[1];
+				}else if(this.dayCicleConter <= base * 3){
+					this.scene.background = SceneAPI.dayCicles[2];
+				}else{
+					this.scene.background = SceneAPI.dayCicles[3];
+				}
+			}
+			setSky(id){
+				this.scene.background = SceneAPI.dayCicles[id];
+			}
+			setBackgroundColor(color){
+				this.scene.background = color;
+			}
+			findObjectByName(name){
+				return this.scene.getObjectByName(name);
+			}
+		};
+		SceneAPI.dayCicles = [
+			{
+				color: 0xee8b48//mañanita
+			},
+			{
+				color: 0x80a0e0//tarde
+			},
+			{
+				color: 0xff8c69//atardecer
+			},
+			{
+				color: 0x0c0d2b//noche
+			}
+		];
+		return SceneAPI;
 	}
 	static getPlayer(){
 		return class Player{};
@@ -280,7 +339,65 @@ class CCPlaymaker{
 	}
 	static getLoadInterface(){
 		const Interface2D = CCPlaymaker.getInterface2D();
-		return class LoadInterface extends Interface2D{};
+		return class LoadInterface extends Interface2D{
+			constructor(){
+				if(globals.icon.startsWith("gameFiles://") && LoadUrlCC){
+					globals.icon = globals.icon.replace("gameFiles://", "");
+					let iconSub = globals.icon;
+					globals.icon = null;
+					let indexP = iconSub.lastIndexOf('.');
+					let mimetype;
+					if(indexP == -1 || indexP == iconSub.length - 1){
+						mimetype = "png/image";
+					}else{
+						mimetype = (iconSub.substring(indexP + 1).toLowerCase())+"/image";
+					}
+					LoadUrlCC.fileToUrl(iconSub, mimetype).then(function(iconn){
+						globals.icon = iconn;
+					}).catch(function(error){
+						console.error(error);
+						globals.icon = iconSub;
+					});
+					for(let i = 0; i < 2; i++){
+						if(globals.icon == null){
+							i = 0;
+						}else{
+							i = 1;
+						}
+					}
+				}
+				let data = [
+					{
+						type: "image",
+						image: globals.icon,
+						text: globals.name,
+						style: {
+							width: "20%",
+							height: "20%"
+						}
+					},
+					{
+						type: "text",
+						text: globals.name,
+						style: {
+							fontSize: "8vw"
+						}
+					},
+					{
+						type: "text",
+						text: "CCPlaymaker powered by Three.js",
+						style: {
+							fontSize: "4vw"
+						}
+					}
+				];
+				super(data, {
+					style: {
+						backgroundColor: "black",
+					}
+				});
+			}
+		};
 	}
 	static getModelAPI(){
 		return class ModelAPI{};
@@ -289,3 +406,16 @@ class CCPlaymaker{
 window.CCPlaymaker = CCPlaymaker;
 let LoadInterface = CCPlaymaker.getLoadInterface();
 let instanceLoad = new LoadInterface();
+instanceLoad.spawn();
+function start(){
+	let SceneAPI = CCPlaymaker.getSceneAPI();
+	this.userData.CCPlaymaker = new SceneAPI();
+	instanceLoad.remove();
+	instanceLoad = null;
+}
+function update( event ) {
+	this.userData.CCPlaymaker.$update(event);
+}
+function stop(){
+	this.userData.CCPlaymaker.$stop();
+}
