@@ -73,6 +73,10 @@ class CCPlaymaker{
 		class SceneAPI{
 			constructor(scene){
 				this.scene = scene;
+				this.$events = {
+					update: [],
+					stop: []
+				};
 				if(globals.dayCicle){
 					this.dayCicleConter = 0;
 					this.dayCicle = setInterval(this.$dayCicleLoop.bind(this), 1);
@@ -92,6 +96,21 @@ class CCPlaymaker{
 					this.scene.background = SceneAPI.dayCicles[2];
 				}else{
 					this.scene.background = SceneAPI.dayCicles[3];
+				}
+			}
+			addEventListener(eventName, callback){
+				if(this.$events[eventName] != null){
+					this.$events[eventName].push(callback);
+				}
+			}
+			$update(event){
+				for(let funcall of this.$events.update){
+					funcall(event);
+				}
+			}
+			$stop(){
+				for(let funcall of this.$events.stop){
+					funcall();
 				}
 			}
 			setSky(id){
@@ -124,7 +143,78 @@ class CCPlaymaker{
 		return class Player{};
 	}
 	static getElementAPI(){
-		return class ElementAPI{};
+		return class ElementAPI{
+			constructor(group){
+				this.group = group;
+				this.$events = {
+					update: [],
+					stop: [],
+					collision: []
+				};
+				this.$collision = false;
+			}
+			setPosition(v){
+				this.group.position.set(v.x, v.y, v.z);
+			}
+			setRotation(v){
+				this.group.rotation.set(v.x, v.y, v.z, 'XYZ');
+			}
+			setScale(s){
+				this.group.scale.set(s.x, s.y, s.z);
+			}
+			setCollision(bol){
+				this.$collision = bol;
+				if(this.$collision && (!this.rayCaster)){
+					this.rayCaster = new THREE.Raycaster();
+				}
+			}
+			setVelocity(v, s){
+                const forward = v.applyQuaternion(this.group.quaternion).normalize();
+				if(!this.group.userData.velocity){
+					this.group.userData.velocity = new THREE.Vector3();
+				}
+                this.group.userData.velocity.copy(forward.multiplyScalar(s));
+			}
+			destroy(){
+				this.group.parent.remove(this.group);
+			}
+			addEventListener(eventName, callback){
+				if(this.$events[eventName] != null){
+					this.$events[eventName].push(callback);
+				}
+			}
+			$update(event){
+				for(let funcall of this.$events.update){
+					funcall(event);
+				}
+			}
+			$updateCollision(event){
+				let worldPos = new THREE.Vector3();
+				this.group.getWorldPosition(worldPos);
+				this.rayCaster.set(worldPos, this.group.velocity);
+				let intersects = this.rayCaster.intersectObjects(scene.children, true);
+				if(intersects.length < 1){
+					return;
+				}
+				for(let intersect of intersects){
+					let distance = intersect.distance;
+					let groundY = intersect.point.y + 1;
+					this.group.userData.lastGroundY = groundY;
+					let groundX = intersect.point.x + 1;
+					this.group.userData.lastGroundX = groundX;
+					let groundZ = intersect.point.z + 1;
+					this.group.userData.lastGroundZ = groundZ;
+					let nextX = this.obj3D.position.x - this.obj3D.userData.velocity.x;
+					let nextY = this.obj3D.position.y - this.obj3D.userData.velocity.y;
+					let nextZ = this.obj3D.position.z - this.obj3D.userData.velocity.z;
+				}
+			}
+			$stop(){
+				for(let funcall of this.$events.stop){
+					funcall();
+				}
+			}
+		};
 	}
 	static getInterface2D(){
 		return class Interface2D{
@@ -398,9 +488,6 @@ class CCPlaymaker{
 				});
 			}
 		};
-	}
-	static getModelAPI(){
-		return class ModelAPI{};
 	}
 }
 window.CCPlaymaker = CCPlaymaker;
