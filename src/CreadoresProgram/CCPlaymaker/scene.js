@@ -18,7 +18,9 @@ let styleCssCCPlaymaker = `
     top: 0%;
     left: 0%;
 	align-items: center;
+	justify-content: center;
 	overflow: auto;
+	z-index: 10;
 }
 button {
     background-color: lightblue;
@@ -152,6 +154,7 @@ class CCPlaymaker{
 					collision: []
 				};
 				this.$collision = false;
+				this.group.userData.velocity = new THREE.Vector3();
 			}
 			setPosition(v){
 				this.group.position.set(v.x, v.y, v.z);
@@ -170,9 +173,6 @@ class CCPlaymaker{
 			}
 			setVelocity(v, s){
                 const forward = v.applyQuaternion(this.group.quaternion).normalize();
-				if(!this.group.userData.velocity){
-					this.group.userData.velocity = new THREE.Vector3();
-				}
                 this.group.userData.velocity.copy(forward.multiplyScalar(s));
 			}
 			destroy(){
@@ -187,6 +187,9 @@ class CCPlaymaker{
 				for(let funcall of this.$events.update){
 					funcall(event);
 				}
+				if(this.$collision){
+					this.$updateCollision(event);
+				}
 			}
 			$updateCollision(event){
 				let worldPos = new THREE.Vector3();
@@ -196,6 +199,7 @@ class CCPlaymaker{
 				if(intersects.length < 1){
 					return;
 				}
+				let collisions = [];
 				for(let intersect of intersects){
 					let distance = intersect.distance;
 					let groundY = intersect.point.y + 1;
@@ -204,9 +208,43 @@ class CCPlaymaker{
 					this.group.userData.lastGroundX = groundX;
 					let groundZ = intersect.point.z + 1;
 					this.group.userData.lastGroundZ = groundZ;
-					let nextX = this.obj3D.position.x - this.obj3D.userData.velocity.x;
-					let nextY = this.obj3D.position.y - this.obj3D.userData.velocity.y;
-					let nextZ = this.obj3D.position.z - this.obj3D.userData.velocity.z;
+					let nextX = this.group.position.x + this.group.userData.velocity.x;
+					let nextY = this.group.position.y + this.group.userData.velocity.y;
+					let nextZ = this.group.position.z + this.group.userData.velocity.z;
+					let nextXtarget;
+					let nextYtarget;
+					let nextZtarget;
+					if(intersect.object.velocity != null){
+						nextXtarget = intersect.object.position.x + intersect.object.userData.velocity.x;
+					    nextYtarget = intersect.object.position.y + intersect.object.userData.velocity.y;
+					    nextZtarget = intersect.object.position.z + intersect.object.userData.velocity.z;
+					}
+					let vNextT;
+					if(nextZtarget != null){
+						vNextT = new THREE.Vector3(nextXtarget, nextYtarget, nextZtarget);
+					}
+					if(distance < 2){
+						collisions.push({
+							distance: distance,
+							groundTarget: new THREE.Vector3(groundX, groundY, groundZ),
+							body: this.group,
+							nextPosBody: new THREE.Vector3(nextX, nextY, nextZ),
+							nextPosTarget: vNextT,
+							target: intersect.object
+						});
+					}
+				}
+				if(collisions.length < 1){
+					return;
+				}
+				let eventC = new CustomEvent('collision',{ 
+					detail: {
+					    updateEvent: event,
+					    collisions: collisions
+				    }
+				});
+				for(let callf of this.$events.collision){
+					callf(eventC);
 				}
 			}
 			$stop(){
@@ -229,7 +267,7 @@ class CCPlaymaker{
 			$renderSuper(data){
 				if(data.style){
 					for(let key in data.style){
-						element.style[key] = data.style[key];
+						this.elementHtml.style[key] = data.style[key];
 					}
 				}
 			}
@@ -343,22 +381,24 @@ class CCPlaymaker{
 				this.elementHtml.innerHTML = "";
 			}
 			show(){
-				this.elementHtml.style.display = 'none';
-			}
-			hide(){
 				this.elementHtml.style.display = 'block';
 			}
+			hide(){
+				this.elementHtml.style.display = 'none';
+			}
 			fadeIn(){
-				if($){
+				try{
 					$(this.elementHtml).fadeIn();
-				}else{
+				}catch(error){
+					console.error(error);
 					this.show();
 				}
 			}
 			fadeOut(){
-				if($){
+				try{
 					$(this.elementHtml).fadeOut();
-				}else{
+				}catch(error){
+					console.error(error);
 					this.hide();
 				}
 			}
@@ -395,22 +435,24 @@ class CCPlaymaker{
 				this.elementHtmlSuper.appendChild(this.elementHtml);
 			}
 			show(){
-				this.elementHtmlSuper.style.display = 'none';
-			}
-			hide(){
 				this.elementHtmlSuper.style.display = 'block';
 			}
+			hide(){
+				this.elementHtmlSuper.style.display = 'none';
+			}
 			fadeIn(){
-				if($){
+				try{
 					$(this.elementHtmlSuper).fadeIn();
-				}else{
+				}catch(error){
+					console.error(error);
 					this.show();
 				}
 			}
 			fadeOut(){
-				if($){
+				try{
 					$(this.elementHtmlSuper).fadeOut();
-				}else{
+				}catch(error){
+					console.error(error);
 					this.hide();
 				}
 			}
@@ -463,27 +505,46 @@ class CCPlaymaker{
 						text: globals.name,
 						style: {
 							width: "20%",
-							height: "20%"
+							height: "20%",
+							alignItems: 'center',
+	                        justifyContent: 'center'
 						}
 					},
 					{
 						type: "text",
 						text: globals.name,
 						style: {
-							fontSize: "8vw"
+							fontSize: "4vw",
+							alignItems: 'center',
+	                        justifyContent: 'center'
 						}
 					},
 					{
 						type: "text",
 						text: "CCPlaymaker powered by Three.js",
 						style: {
-							fontSize: "4vw"
+							fontSize: "2vw",
+							alignItems: 'center',
+	                        justifyContent: 'center'
+						}
+					},
+					{
+						type: "text",
+						text: "Loading...",
+						style: {
+							transform: "translate(-50%, -50%)",
+							position: "fixed",
+							left: "50%",
+							top: "80%",
+							alignItems: 'center',
+	                        justifyContent: 'center'
 						}
 					}
 				];
 				super(data, {
 					style: {
 						backgroundColor: "black",
+						color: 'white'
 					}
 				});
 			}
@@ -497,6 +558,7 @@ instanceLoad.spawn();
 function start(){
 	let SceneAPI = CCPlaymaker.getSceneAPI();
 	this.userData.CCPlaymaker = new SceneAPI();
+	instanceLoad.fadeOut();
 	instanceLoad.remove();
 	instanceLoad = null;
 }
