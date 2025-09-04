@@ -67,6 +67,24 @@ input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focu
 ::-webkit-scrollbar-thumb:hover {
     background: #56A5EC;
 }
+#joystick-base {
+	width: 15vh;
+	height: 15vh;
+	background-color: rgba(255, 255, 255, 0.3);
+	border: 2px solid rgba(255, 255, 255, 0.5);
+	border-radius: 50%;
+	position: relative;
+}
+#joystick-stick {
+   width: 7vh;
+   height: 7vh;
+   backgroud-color: rgba(255, 255, 255, 0.7);
+   border-radius: 50%;
+   position: absolute;
+   top: 50%;
+   left: 50%;
+   transform: translate(-50%, -50%);
+}
 `;
 let elementCssPlaym = document.createElement('style');
 elementCssPlaym.innerHTML = styleCssCCPlaymaker;
@@ -99,8 +117,12 @@ class CCPlaymaker{
 					update: [],
 					stop: []
 				};
+				if(globals.sceneProps.onControls){
+					//code...
+				}
 				if(globals.sceneProps.dayCicle){
 					this.dayCicleConter = 0;
+					this.$dayCicleLoop();
 					this.dayCicle = setInterval(this.$dayCicleLoop.bind(this), 1000);
 				}else if(globals.sceneProps.backgroundTexture && globals.sceneProps.backgroundTexture.length == 6){
 					let textureAr = [];
@@ -400,6 +422,14 @@ class CCPlaymaker{
 				if(data.clickEvent){
 					element.onclick = data.clickEvent;
 				}
+				if(data.initclickEvent){
+					element.ontouchstart = data.initclickEvent;
+					element.onmousedown = data.initclickEvent;
+				}
+				if(data.endclickEvent){
+					element.ontouchend = data.endclickEvent;
+					element.onmouseup = data.endclickEvent;
+				}
 				this.elementHtml.appendChild(element);
 				this.elementHtml.appendChild(document.createElement("br"));
 			}
@@ -503,7 +533,7 @@ class CCPlaymaker{
 			constructor(data){
 				let dataF = {
 					style: {
-						backgroundColor: "rgba(0, 0, 0, 0.5)"
+						backgroundColor: "rgba(0, 0, 0, 0.2)"
 					}
 				};
 				super([], dataF);
@@ -554,7 +584,165 @@ class CCPlaymaker{
 	}
 	static getControlsAPI(){
 		const Interface2D = CCPlaymaker.getInterface2D();
-		return class ControlsAPI extends Interface2D{};
+		return class ControlsAPI extends Interface2D{
+			constructor(){
+				let dataB = {
+					style: {
+						backgroundColor: 'rgba(0, 0, 0, 0)',
+						pointerEvents: 'none',
+						touchAction: 'none',
+						userSelect: 'none'
+					}
+				};
+				let data = [
+					{
+						type: 'button',
+						image: '',//img...
+						style: {
+							position: 'fixed',
+							bottom: '20px',
+							right: '0',
+							transform: 'translateX(120px)',
+							userSelect: 'none',
+							width: '10vh',
+							height: '10vh',
+							backgroundColor: 'rgba(255, 255, 255, 0.5)',
+							border: '2px solid rgba(255, 255, 255, 0.8)',
+							borderRadius: '50%',
+							textAlign: 'center'
+						},
+						clickEvent: function(){
+							//code...
+						}.bind(this)
+						
+					},
+					{
+						type: 'raw',
+						text: '<div id="joystick-base"><div id="joystick-stick"></div></div>',
+						style: {
+							position: 'fixed',
+							bottom: '20px',
+							left: '20px'
+						}
+					}
+				];
+				super(data, dataB);
+				let isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints;
+				if(isTouchDevice){
+					return;
+				}
+				this.clear();
+				window.addEventListener('keydown', function(event){
+					let tecla = event.key.toLowerCase();
+					switch(tecla){
+						case 'w':
+							//mover adelante
+							break;
+						case 's':
+							//mover atras
+							break;
+						case 'a':
+							//mover izquierda
+							break;
+						case 'd':
+							//mover derecha
+							break;
+						case 'arrowup':
+							//cara arriva
+							break;
+						case 'arrowdown':
+							//cara abajo
+							break;
+						case 'arrowleft':
+							//cara izquierda
+							break;
+						case 'arrowright':
+							//cara derecha
+							break;
+						case ' ':
+							//salto
+							break;
+					}
+				}.bind(this));
+				window.addEventListener('keyup', function(event){
+					let tecla = event.key.toLowerCase();
+					switch(tecla){
+						case 'w':
+							//mover adelante
+							break;
+						case 's':
+							//mover atras
+							break;
+						case 'a':
+							//mover izquierda
+							break;
+						case 'd':
+							//mover derecha
+							break;
+						case 'arrowup':
+							//cara arriva
+							break;
+						case 'arrowdown':
+							//cara abajo
+							break;
+						case 'arrowleft':
+							//cara izquierda
+							break;
+						case 'arrowright':
+							//cara derecha
+							break;
+						case ' ':
+							//salto
+							break;
+					}
+				}.bind(this));
+				this.$gameLoop();
+			}
+			$gameLoop(){
+				let gamepads = navigator.getGamepads();
+				if(gamepads.length < 1){
+					requestAnimationFrame(this.$gameLoop.bind(this));
+					return;
+				}
+				for(let playerId in gamepads){
+					let gamepad = gamepads[playerId];
+					let axes = gamepad.axes;
+					let buttons = gamepad.buttons;
+					if(buttons[9].pressed){
+						//salto
+					}
+					if(axes[0] != 0){
+						if(axes[0] < 0){
+							//mover izquierda
+						}else{
+							//mover derecha
+						}
+					}else{}
+					if(axes[1] != 0){
+						if(axes[1] < 0){
+							//mover arriba
+						}else{
+							//mover abajo
+						}
+					}else{}
+					if(axes[2] != 0){
+						if(axes[2] < 0){
+							//cara izquierda
+						}else{
+							//cara derecha
+						}
+					}else{}
+					if(axes[3] != 0){
+						if(axes[2] < 0){
+							//cara arriba
+						}else{
+							//cara abajo
+						}
+					}else{}
+				}
+				requestAnimationFrame(this.$gameLoop.bind(this));
+			}
+		};
 	}
 	static getLoadInterface(){
 		const Interface2D = CCPlaymaker.getInterface2D();
