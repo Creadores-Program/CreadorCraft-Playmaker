@@ -1,10 +1,11 @@
 let globals = {
 	name: "a CCPlaymaker powered by Three.js Game",
-	icon: "https://example.com/image.webp",
+	icon: "",
 	sceneProps: {
-		dayCicle: false,
-		dayCicleTimeS: 0,
+		dayCicle: true,
+		dayCicleTimeS: 1200,
 		background: '',
+		backgroundTexture: [],
 		backgroundColor: 0x80a0e0,
 		onControls: true,
 		playerGroupName: ""
@@ -71,6 +72,25 @@ let elementCssPlaym = document.createElement('style');
 elementCssPlaym.innerHTML = styleCssCCPlaymaker;
 document.head.appendChild(elementCssPlaym);
 class CCPlaymaker{
+	static getTextureLoader(){
+		if(!CCPlaymaker.$textureLoader){
+			CCPlaymaker.$textureLoader = new THREE.TextureLoader();
+		}
+		return CCPlaymaker.$textureLoader;
+	}
+	static loadTexture(textureUrl){
+		let texload = CCPlaymaker.getTextureLoader();
+		return texload.load(textureArr);
+	}
+	static getCubeTextureLoader(){
+		if(!CCPlaymaker.$cubeTextureLoader){
+			CCPlaymaker.$cubeTextureLoader = new THREE.CubeTextureLoader();
+		}
+		return CCPlaymaker.$cubeTextureLoader;
+	}
+	static loadCubeTexture(textureArr){
+		return CCPlaymaker.$cubeTextureLoader.load(textureArr);
+	}
 	static getSceneAPI(){
 		class SceneAPI{
 			constructor(scene){
@@ -79,25 +99,92 @@ class CCPlaymaker{
 					update: [],
 					stop: []
 				};
-				if(globals.dayCicle){
+				if(globals.sceneProps.dayCicle){
 					this.dayCicleConter = 0;
-					this.dayCicle = setInterval(this.$dayCicleLoop.bind(this), 1);
+					this.dayCicle = setInterval(this.$dayCicleLoop.bind(this), 1000);
+				}else if(globals.sceneProps.backgroundTexture && globals.sceneProps.backgroundTexture.length == 6){
+					let textureAr = [];
+					for(let texture of globals.sceneProps.backgroundTexture){
+						if(!texture){
+							throw new Error("A part of the texture cannot be null");
+						}
+						let url;
+						if(texture.startsWith('gameFiles://') && LoadUrlCC){
+							let subtex = texture.replace('gameFiles://', '');
+							let indexP = subtex.lastIndexOf('.');
+					        let mimetype;
+					        if(indexP == -1 || indexP == subtex.length - 1){
+						        mimetype = "png/image";
+					        }else{
+						        mimetype = (subtex.substring(indexP + 1).toLowerCase())+"/image";
+					        }
+					        LoadUrlCC.fileToUrl(subtex, mimetype).then(function(netext){
+						        url = netext;
+					        }).catch(function(error){
+						        console.error(error);
+						        url = texture;
+					        });
+					        for(let i = 0; i < 2; i++){
+						        if(url == null){
+							        i = 0;
+						        }else{
+							        i = 1;
+						        }
+					        }
+						}else{
+							url = texture;
+						}
+						textureAr.push(url);
+					}
+					let backgS = CCPlaymaker.loadCubeTexture(textureAr);
+					this.scene.background = backgS;
+				}else if(globals.sceneProps.background && globals.sceneProps.background.trim() != ''){
+					this.setBackgroundColor(globals.sceneProps.backgroundColor);
+					let textureF;
+					if(globals.sceneProps.background.startsWith('gameFiles://') && LoadUrlCC){
+						let subtex = globals.sceneProps.background.replace('gameFiles://', '');
+					    let indexP = subtex.lastIndexOf('.');
+					    let mimetype;
+					    if(indexP == -1 || indexP == subtex.length - 1){
+						    mimetype = "png/image";
+					    }else{
+						    mimetype = (subtex.substring(indexP + 1).toLowerCase())+"/image";
+					    }
+					    LoadUrlCC.fileToUrl(subtex, mimetype).then(function(netext){
+						    textureF = netext;
+					    }).catch(function(error){
+						    console.error(error);
+						    textureF = globals.sceneProps.background;
+					    });
+					    for(let i = 0; i < 2; i++){
+						    if(textureF == null){
+							    i = 0;
+						    }else{
+							    i = 1;
+						    }
+					    }
+					}else{
+						textureF = CCPlaymaker.loadTexture(globals.sceneProps.background);
+					}
+					this.scene.background = textureF;
+				}else{
+					this.setBackgroundColor(globals.sceneProps.backgroundColor);
 				}
 			}
 			$dayCicleLoop(){
 				this.dayCicleConter++;
-				if(this.dayCicleConter > globals.dayCicleTimeS){
+				if(this.dayCicleConter > globals.sceneProps.dayCicleTimeS){
 					this.dayCicleConter = 0;
 				}
-				let base = globals.dayCicleTimeS / 4;
+				let base = globals.sceneProps.dayCicleTimeS / 4;
 				if(this.dayCicleConter <= base){
-				    this.scene.background = SceneAPI.dayCicles[0];
+					this.setSky(0);
 				}else if(this.dayCicleConter <= base * 2){
-					this.scene.background = SceneAPI.dayCicles[1];
+					this.setSky(1);
 				}else if(this.dayCicleConter <= base * 3){
-					this.scene.background = SceneAPI.dayCicles[2];
+					this.setSky(2);
 				}else{
-					this.scene.background = SceneAPI.dayCicles[3];
+					this.setSky(3);
 				}
 			}
 			addEventListener(eventName, callback){
@@ -116,10 +203,10 @@ class CCPlaymaker{
 				}
 			}
 			setSky(id){
-				this.scene.background = SceneAPI.dayCicles[id];
+				this.setBackgroundColor(SceneAPI.dayCicles[id].color);
 			}
 			setBackgroundColor(color){
-				this.scene.background = color;
+				this.scene.background = new THREE.Color(color);
 			}
 			findObjectByName(name){
 				return this.scene.getObjectByName(name);
@@ -557,12 +644,15 @@ let instanceLoad = new LoadInterface();
 instanceLoad.spawn();
 function start(){
 	let SceneAPI = CCPlaymaker.getSceneAPI();
-	this.userData.CCPlaymaker = new SceneAPI();
+	this.userData.CCPlaymaker = new SceneAPI(this);
 	instanceLoad.fadeOut();
 	instanceLoad.remove();
 	instanceLoad = null;
 }
 function update( event ) {
+	if(!this.userData.CCPlaymaker){
+		return;
+	}
 	this.userData.CCPlaymaker.$update(event);
 }
 function stop(){
